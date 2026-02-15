@@ -1,0 +1,146 @@
+#!/bin/bash
+
+# ====================================
+# Remote Approval Status Tool
+# ====================================
+# 接続情報とステータスを表示
+#
+# 使い方:
+#   ./status          - 接続情報を表示
+#   ./status connect  - 接続用の情報を表示（iPhoneで使う）
+# ====================================
+
+# 色付け
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# 接続情報表示
+show_status() {
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}  Remote Approval 接続情報${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+
+    local username=$(whoami)
+    local hostname=$(hostname)
+
+    # Tailscale IP
+    local tailscale_ip=""
+    if command -v tailscale &> /dev/null; then
+        tailscale_ip=$(tailscale ip -4 2>/dev/null)
+    fi
+
+    # ローカル IP
+    local local_ip=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
+
+    echo -e "${BLUE}【接続情報】${NC}"
+    echo ""
+    echo -e "  ユーザー名: ${CYAN}$username${NC}"
+    echo -e "  ホスト名:   ${CYAN}$hostname${NC}"
+    echo ""
+
+    if [ -n "$tailscale_ip" ]; then
+        echo -e "${GREEN}[推奨] Tailscale経由で接続${NC}"
+        echo -e "  IP: ${CYAN}$tailscale_ip${NC}"
+        echo ""
+        echo "  Terminusでの設定:"
+        echo -e "    ホスト: ${CYAN}$tailscale_ip${NC}"
+        echo -e "    ユーザー: ${CYAN}$username${NC}"
+        echo "    ポート: 22"
+        echo ""
+    fi
+
+    if [ -n "$local_ip" ]; then
+        echo -e "${YELLOW}[同一WiFi時] ローカル接続${NC}"
+        echo -e "  IP: ${CYAN}$local_ip${NC}"
+        echo ""
+        echo "  Terminusでの設定:"
+        echo -e "    ホスト: ${CYAN}$local_ip${NC}"
+        echo -e "    ユーザー: ${CYAN}$username${NC}"
+        echo "    ポート: 22"
+        echo ""
+    fi
+
+    # SSH状態
+    echo -e "${BLUE}【SSH状態】${NC}"
+    if systemsetup -getremotelogin 2>/dev/null | grep -q "On"; then
+        echo -e "  ${GREEN}✓ リモートログイン: 有効${NC}"
+    else
+        echo -e "  ${RED}✗ リモートログイン: 無効${NC}"
+        echo "  → ./setup mac で有効化してください"
+    fi
+    echo ""
+
+    # Tailscale状態
+    echo -e "${BLUE}【Tailscale状態】${NC}"
+    if command -v tailscale &> /dev/null; then
+        if tailscale status &> /dev/null; then
+            echo -e "  ${GREEN}✓ 接続中${NC}"
+            echo ""
+            echo "  接続デバイス一覧:"
+            tailscale status 2>/dev/null | head -10 | sed 's/^/    /'
+        else
+            echo -e "  ${YELLOW}△ 未接続${NC}"
+            echo "  → tailscale up でログインしてください"
+        fi
+    else
+        echo -e "  ${RED}✗ 未インストール${NC}"
+        echo "  → ./setup tailscale でインストールしてください"
+    fi
+    echo ""
+}
+
+# 接続用コンパクト情報
+show_connect_info() {
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}  iPhone/Terminusでの接続設定${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+
+    local username=$(whoami)
+    local tailscale_ip=$(tailscale ip -4 2>/dev/null)
+    local local_ip=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
+
+    echo "以下の情報をTerminusに入力:"
+    echo ""
+    echo "┌────────────────────────────────────────┐"
+    echo "│  Terminusの新規ホスト設定               │"
+    echo "├────────────────────────────────────────┤"
+
+    if [ -n "$tailscale_ip" ]; then
+        echo -e "│  ${GREEN}[外出先OK]${NC} Tailscale経由            │"
+        printf "│  ホスト: %-29s │\n" "$tailscale_ip"
+    elif [ -n "$local_ip" ]; then
+        echo -e "│  ${YELLOW}[同一WiFiのみ]${NC} ローカル            │"
+        printf "│  ホスト: %-29s │\n" "$local_ip"
+    fi
+
+    printf "│  ユーザー: %-27s │\n" "$username"
+    echo "│  ポート: 22                            │"
+    echo "│  認証: パスワード or SSH鍵             │"
+    echo "└────────────────────────────────────────┘"
+    echo ""
+    echo -e "${YELLOW}パスワード:${NC} Macのログインパスワード"
+    echo ""
+}
+
+# メイン処理
+case "$1" in
+    connect)
+        show_connect_info
+        ;;
+    help|--help|-h)
+        echo "使い方:"
+        echo "  ./status          接続情報を表示"
+        echo "  ./status connect  Terminusでの設定情報を表示"
+        ;;
+    *)
+        show_status
+        ;;
+esac

@@ -1,0 +1,10 @@
+# Prevent line ending issues across Windows/WSL/macOS
+* text=auto
+*.md text eol=lf
+.env.example text eol=lf
+*.sh text eol=lf
+setup text eol=lf
+status text eol=lf
+watch text eol=lf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
