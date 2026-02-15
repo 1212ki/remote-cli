@@ -1,4 +1,4 @@
-[CmdletBinding(PositionalBinding = $false)]
+﻿[CmdletBinding(PositionalBinding = $false)]
 param(
     [Parameter(Position = 0)]
     [ValidateSet("check", "windows", "tailscale", "all", "help", "mac")]
